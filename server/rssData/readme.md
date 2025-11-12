@@ -2,31 +2,11 @@ Berikut versi markdown-nya siap pakai sebagai **`README.md`** 👇
 
 ---
 
-````markdown
+```markdown
 # 📰 RSS Parser with Bun
 
 Proyek ini menggunakan [`rss-parser`](https://www.npmjs.com/package/rss-parser) untuk mengambil dan membaca RSS feed dari berbagai sumber berita seperti **Tempo** dan **CNN Indonesia**.  
 Kode ditulis dengan **TypeScript** dan dijalankan menggunakan runtime **[Bun](https://bun.sh)**.
-
----
-
-## 📦 Persyaratan
-
-Pastikan kamu sudah menginstal **Bun** di sistemmu.
-
-### Instal Bun
-
-Jika belum terpasang:
-
-```bash
-curl -fsSL https://bun.sh/install | bash
-```
-````
-
-Lalu pastikan berhasil:
-
-```bash
-bun --version
 ```
 
 ---

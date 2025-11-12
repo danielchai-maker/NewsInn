@@ -74,4 +74,4 @@ export default defineConfig([
 
 ## Task 1 rss response
 
-See [this task](https://github.com/danielchai-maker/NewsInn/tree/master/server/data)
+See [this task](https://github.com/danielchai-maker/NewsInn/tree/rss-data/server/rssData)
