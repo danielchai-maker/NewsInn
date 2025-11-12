@@ -36,6 +36,13 @@ export const rssParser = async ({ source }: { source: "cnn" | "tempo"; }) => {
         snippet: (item as ItemTempo).contentSnippet,
       }),
   }));
+  console.table(news.slice(0, 3).map((item) => ({
+    date: item.date,
+    link: item.link.slice(0, 10),
+    title: item.title
+  })));
 
   return news;
 };
+
+rssParser({ source: "cnn" });
