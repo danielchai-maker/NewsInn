@@ -44,5 +44,3 @@ export const rssParser = async ({ source }: { source: "cnn" | "tempo"; }) => {
 
   return news;
 };
-
-rssParser({ source: "cnn" });
