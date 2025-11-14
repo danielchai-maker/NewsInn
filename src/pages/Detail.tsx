@@ -6,7 +6,7 @@ interface NewsItem {
   title: string;
   image: string;
   summary: string;
-  content?: string;
+  content: string;
   category: string;
   link: string;
   date?: string;
@@ -14,25 +14,21 @@ interface NewsItem {
 
 const Detail: React.FC = () => {
   const { id, category } = useParams<{ id: string; category?: string }>();
+
   const [news, setNews] = useState<NewsItem | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [newsList, setNewsList] = useState<NewsItem[]>([]);
+  const [related, setRelated] = useState<string[]>([]);
+  const [loadingRelated, setLoadingRelated] = useState(false);
 
   useEffect(() => {
     if (!id) return;
 
-    // Gunakan sumber sesuai kategori di URL, default = tempo
     const source = category === "cnn" ? "cnn" : "tempo";
-    const url = `http://localhost:5000/api/rss/${source}`;
 
-    setLoading(true);
-    fetch(url)
-      .then((res) => {
-        if (!res.ok) throw new Error("Gagal memuat berita");
-        return res.json();
-      })
+    fetch(`http://localhost:5000/api/rss/${source}`)
+      .then((res) => res.json())
       .then((data) => {
-        const mappedNews = data.map((item: any, index: number) => ({
+        const mapped = data.map((item: any, index: number) => ({
           id: index,
           title: item.title,
           image:
@@ -46,38 +42,46 @@ const Detail: React.FC = () => {
           date: item.date,
         }));
 
-        // Cari berita dengan id sesuai params
-        const foundNews = mappedNews.find(
-          (item: NewsItem) => item.id === Number(id)
-        );
-        if (!foundNews) throw new Error("Berita tidak ditemukan");
+        setNewsList(mapped);
 
-        setNews(foundNews);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setLoading(false);
+        const found = mapped.find((i: NewsItem) => i.id === Number(id));
+        setNews(found || null);
+
+        if (found) fetchRelated(found.title);
       });
   }, [id, category]);
 
-  if (loading)
-    return <p className="text-center py-10">Memuat detail berita...</p>;
-  if (error) return <p className="text-center text-red-500">{error}</p>;
-  if (!news) return <p>Berita tidak ditemukan.</p>;
+  const fetchRelated = async (title: string) => {
+    setLoadingRelated(true);
+    try {
+      const res = await fetch("http://localhost:5000/api/recommend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title }),
+      });
+
+      const data = await res.json();
+
+      setRelated(data.recommendations || []); // array string
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingRelated(false);
+    }
+  };
+
+  if (!news) return <p className="text-center py-10">Memuat berita...</p>;
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="max-w-4xl mx-auto p-6">
       <Link to="/" className="text-blue-600 text-sm hover:underline">
         ← Kembali ke Beranda
       </Link>
 
       <h1 className="text-3xl font-bold mt-4">{news.title}</h1>
-      <p className="text-gray-500 mt-2">
-        Kategori: {news.category} —{" "}
-        {news.date
-          ? new Date(news.date).toLocaleDateString("id-ID")
-          : new Date().toLocaleDateString("id-ID")}
+      <p className="text-gray-500 mt-1">
+        {news.category} —{" "}
+        {news.date ? new Date(news.date).toLocaleDateString("id-ID") : ""}
       </p>
 
       <img
@@ -90,25 +94,25 @@ const Detail: React.FC = () => {
         {news.content}
       </p>
 
-      {/* Navigasi ke berita sebelumnya & berikutnya */}
-      <div className="flex justify-between mt-10">
-        <Link
-          to={`/detail/${Number(id) - 1}/${category || "tempo"}`}
-          className={`${
-            Number(id) === 0
-              ? "text-gray-400 cursor-not-allowed"
-              : "text-blue-600 hover:underline"
-          }`}
-        >
-          ← Sebelumnya
-        </Link>
-        <Link
-          to={`/detail/${Number(id) + 1}/${category || "tempo"}`}
-          className="text-blue-600 hover:underline"
-        >
-          Berikutnya →
-        </Link>
-      </div>
+      {/* Rekomendasi AI */}
+      <h2 className="text-2xl font-semibold mt-12 mb-4">Berita Serupa</h2>
+
+      {loadingRelated ? (
+        <p className="text-gray-500">AI sedang menganalisis judul...</p>
+      ) : related.length > 0 ? (
+        <ul className="space-y-3">
+          {related.map((text, idx) => (
+            <li
+              key={idx}
+              className="p-4 bg-gray-100 rounded-lg shadow hover:bg-gray-200 cursor-pointer transition"
+            >
+              {text}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-gray-500">Tidak ada rekomendasi berita serupa</p>
+      )}
     </div>
   );
 };
