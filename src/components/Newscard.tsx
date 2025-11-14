@@ -3,8 +3,8 @@ import { Link } from "react-router-dom";
 interface NewsCardProps {
   id: number;
   title: string;
-  image: string;
-  summary: string;
+  image?: string;
+  summary?: string;
   onDelete?: (id: number) => void;
   deleting?: boolean;
 }
@@ -17,9 +17,16 @@ const NewsCard: React.FC<NewsCardProps> = ({
   onDelete,
   deleting,
 }) => {
+  // 🔹 Gambar default kalau tidak ada atau gagal dimuat
+  const fallbackImage = "https://via.placeholder.com/600x400?text=No+Image";
+
+  // Pastikan image selalu string agar tidak undefined
+  const safeImage =
+    typeof image === "string" && image.trim() !== "" ? image : fallbackImage;
+
   return (
     <div className="relative bg-white shadow rounded-lg overflow-hidden transform transition duration-300 hover:scale-105 hover:shadow-xl group">
-      {/* Tombol Hapus (muncul saat hover) */}
+      {/* Tombol hapus (opsional) */}
       {onDelete && (
         <button
           onClick={() => onDelete(id)}
@@ -30,13 +37,27 @@ const NewsCard: React.FC<NewsCardProps> = ({
         </button>
       )}
 
-      <img src={image} alt={title} className="w-full h-48 object-cover" />
+      {/* 🔹 Gunakan fallback kalau gambar tidak ada */}
+      <img
+        src={safeImage}
+        alt={title}
+        className="w-full h-48 object-cover bg-gray-200"
+        onError={(e) => {
+          (e.currentTarget as HTMLImageElement).src = fallbackImage;
+        }}
+      />
 
       <div className="p-4">
-        <h2 className="text-lg font-semibold mb-2">{title}</h2>
-        <p className="text-gray-600 text-sm line-clamp-3">{summary}</p>
+        <h2 className="text-lg font-semibold mb-2 line-clamp-2">{title}</h2>
+        <p className="text-gray-600 text-sm line-clamp-3">
+          {summary && summary.trim() !== ""
+            ? summary
+            : "Tidak ada ringkasan tersedia."}
+        </p>
+
         <Link
           to={`/detail/${id}`}
+          state={{ id, title, image, summary }}
           className="text-blue-600 text-sm font-medium hover:underline mt-2 block"
         >
           Baca selengkapnya →

@@ -2,6 +2,7 @@ import { Elysia, t } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { newsData } from "./data/newsData";
 import type { NewsItem } from "./data/newsData";
+import { rssParser } from "./rssData/index.ts";
 
 const app = new Elysia();
 
@@ -12,6 +13,18 @@ app.use(
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   })
 );
+
+// ✅ GET berita dari Tempo (aman terhadap undefined)
+app.get("/api/rss/tempo", async () => {
+  const data = (await rssParser({ source: "tempo" })) ?? [];
+  return data;
+});
+
+// ✅ GET berita dari CNN (aman terhadap undefined)
+app.get("/api/rss/cnn", async () => {
+  const data = (await rssParser({ source: "cnn" })) ?? [];
+  return data;
+});
 
 // ✅ GET semua berita
 app.get("/api/news", () => newsData, {

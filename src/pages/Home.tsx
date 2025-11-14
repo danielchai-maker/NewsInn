@@ -5,10 +5,13 @@ import NewsCard from "../components/Newscard";
 interface NewsItem {
   id: number;
   title: string;
-  image: string;
-  summary: string;
-  category: string;
-  content: string;
+  image?: string;
+  summary?: string;
+  category?: string;
+  content?: string;
+  link: string;
+  date?: string;
+  snippet?: string;
 }
 
 const Home: React.FC = () => {
@@ -17,13 +20,20 @@ const Home: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [visibleCount, setVisibleCount] = useState(15); // 👈 tampil awal hanya 15 berita
 
-  // 🔹 Ambil data berita dari backend
+  interface ApiNewsItem {
+    title: string;
+    image?: string;
+    snippet?: string;
+    content?: string;
+    link: string;
+    date?: string;
+  }
+  // 🔹 Ambil data dari backend
   useEffect(() => {
-    const url = category
-      ? `http://localhost:5000/api/news/category/${category}`
-      : `http://localhost:5000/api/news`;
+    const source = category === "cnn" ? "cnn" : "tempo";
+    const url = `http://localhost:5000/api/rss/${source}`;
 
     setLoading(true);
     fetch(url)
@@ -32,7 +42,19 @@ const Home: React.FC = () => {
         return res.json();
       })
       .then((data) => {
-        setNews(data);
+        const mappedNews = (data as ApiNewsItem[]).map((item, index) => ({
+          id: index,
+          title: item.title,
+          image:
+            item.image && item.image.trim() !== ""
+              ? item.image
+              : "https://via.placeholder.com/600x400?text=No+Image",
+          summary: item.snippet || "",
+          link: item.link,
+          date: item.date,
+          category: source.toUpperCase(),
+        }));
+        setNews(mappedNews);
         setLoading(false);
       })
       .catch((err) => {
@@ -41,17 +63,15 @@ const Home: React.FC = () => {
       });
   }, [category]);
 
-  // 🔹 Slider otomatis (setiap 10 detik) — hanya aktif jika tidak di kategori
+  // 🔹 Slider otomatis (hanya di beranda utama)
   useEffect(() => {
-    if (category || news.length === 0) return; // ⛔ tidak aktif di halaman kategori
-
+    if (category || news.length === 0) return;
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % Math.min(news.length, 5));
     }, 10000);
     return () => clearInterval(interval);
   }, [news, category]);
 
-  // 🔹 Navigasi manual
   const nextSlide = () => {
     setCurrentSlide((prev) => (prev + 1) % Math.min(news.length, 5));
   };
@@ -62,36 +82,20 @@ const Home: React.FC = () => {
     );
   };
 
-  // 🔹 Hapus berita
-  const handleDelete = async (id: number) => {
-    if (!confirm("Yakin ingin menghapus berita ini?")) return;
-    setDeletingId(id);
-
-    try {
-      const res = await fetch(`http://localhost:5000/api/news/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!res.ok) throw new Error("Gagal menghapus berita");
-
-      setNews((prev) => prev.filter((item) => item.id !== id));
-      alert("✅ Berita berhasil dihapus");
-    } catch {
-      alert("❌ Terjadi kesalahan saat menghapus berita");
-    } finally {
-      setDeletingId(null);
-    }
+  // 🔹 Handler "Lihat Lebih Banyak"
+  const handleLoadMore = () => {
+    setVisibleCount(news.length); // tampilkan semua
   };
 
   if (loading) return <p className="text-center py-10">Memuat berita...</p>;
   if (error) return <p className="text-center text-red-500">{error}</p>;
 
   const featuredNews = news.slice(0, 5);
-  const allNews = news;
+  const allNews = news.slice(0, visibleCount); // hanya tampilkan sejumlah visibleCount
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      {/* 🧭 SLIDER hanya muncul jika tidak di halaman kategori */}
+      {/* 🧭 SLIDER (hanya di beranda utama) */}
       {!category && featuredNews.length > 0 && (
         <div className="relative w-full h-96 mb-10 overflow-hidden rounded-2xl shadow-lg">
           {featuredNews.map((item, index) => (
@@ -113,7 +117,7 @@ const Home: React.FC = () => {
             </div>
           ))}
 
-          {/* Tombol navigasi */}
+          {/* Navigasi slider */}
           <button
             onClick={prevSlide}
             className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/70 text-white p-2 rounded-full"
@@ -127,7 +131,7 @@ const Home: React.FC = () => {
             →
           </button>
 
-          {/* Indikator titik */}
+          {/* Titik indikator */}
           <div className="absolute bottom-4 left-0 right-0 flex justify-center space-x-2">
             {featuredNews.map((_, index) => (
               <span
@@ -148,22 +152,28 @@ const Home: React.FC = () => {
       <h2 className="text-2xl font-bold mb-4 text-gray-800">
         {category ? `Berita ${category}` : "Semua Berita"}
       </h2>
+
       <section className="grid gap-6 md:grid-cols-3">
         {allNews.length > 0 ? (
-          allNews.map((item) => (
-            <NewsCard
-              key={item.id}
-              {...item}
-              onDelete={handleDelete}
-              deleting={deletingId === item.id}
-            />
-          ))
+          allNews.map((item) => <NewsCard key={item.id} {...item} />)
         ) : (
           <p className="text-gray-600 col-span-3 text-center">
             Tidak ada berita.
           </p>
         )}
       </section>
+
+      {/* 🔽 Tombol "Lihat Lebih Banyak" */}
+      {visibleCount < news.length && (
+        <div className="flex justify-center mt-8">
+          <button
+            onClick={handleLoadMore}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-lg transition"
+          >
+            Lihat Lebih Banyak ⬇️
+          </button>
+        </div>
+      )}
     </div>
   );
 };
