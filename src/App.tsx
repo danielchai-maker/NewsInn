@@ -1,21 +1,29 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
 import Detail from "./pages/Detail";
 import AddNews from "./pages/AddNews";
+import Bookmarks from "./pages/Bookmark";
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 const App: React.FC = () => {
   return (
-    <Router>
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 dark:text-white transition-colors duration-300">
       <Navbar />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/category/:category" element={<Home />} />{" "}
-        {/* ✅ untuk filter */}
-        <Route path="/detail/:id" element={<Detail />} />
-        <Route path="/add" element={<AddNews />} />
-      </Routes>
-    </Router>
+
+      <div className="max-w-6xl mx-auto p-4">
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/category/:category" element={<Home />} />
+          <Route path="/detail/:id" element={<Detail />} />
+          <Route path="/add" element={<AddNews />} />
+          <Route path="/bookmark" element={<Bookmarks />} />
+        </Routes>
+      </div>
+
+      <ToastContainer position="top-center" autoClose={1500} />
+    </div>
   );
 };
 

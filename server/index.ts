@@ -1,7 +1,6 @@
-import { Elysia, t } from "elysia";
+import { Elysia } from "elysia";
 import { cors } from "@elysiajs/cors";
 import { newsData } from "./data/newsData";
-import type { NewsItem } from "./data/newsData";
 import { rssParser } from "./rssData/index";
 import { geminiAgent } from "./ai-agent/index";
 import { recommendRoute } from "./ai-agent/recommend";
@@ -20,41 +19,42 @@ app.use(
 
 // RSS Tempo
 app.get("/api/rss/tempo", async () => {
-  const data = (await rssParser({ source: "tempo" })) ?? [];
-  return data;
+  const data = await rssParser({ source: "tempo" });
+  return data ?? [];
 });
 
 // RSS CNN
 app.get("/api/rss/cnn", async () => {
-  const data = (await rssParser({ source: "cnn" })) ?? [];
-  return data;
+  const data = await rssParser({ source: "cnn" });
+  return data ?? [];
 });
 
-// --- AI Recommendation Route ---
+// AI Recommendation
 app.post("/recommend", async ({ body }) => {
   const { title } = body as { title: string };
 
   const prompt = `
 Berikut adalah judul berita: "${title}"
 Buat 3 rekomendasi topik berita lain yang sangat mirip dan relevan.
-Format hanya bullet list contoh:
+Format bullet list:
 - rekomendasi 1
 - rekomendasi 2
 - rekomendasi 3
-Tanpa penjelasan tambahan.
 `;
 
   const result = await geminiAgent(prompt);
-
   return { recommendations: result };
 });
 
-//all news
-app.get("/api/news", () => newsData);
+// GET DETAIL BY LINK
+app.get("/api/getByLink", ({ query }) => {
+  const url = query.url as string;
 
-// news by id
-app.get("/api/news/:id", ({ params }) => {
-  const item = newsData.find((i) => i.id === Number(params.id));
+  if (!url) return { error: "URL is required" };
+
+  const decodedUrl = decodeURIComponent(url);
+  const item = newsData.find((i) => i.link === decodedUrl);
+
   if (!item) return { error: "Not found" };
   return item;
 });

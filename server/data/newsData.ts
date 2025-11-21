@@ -5,6 +5,7 @@ export interface NewsItem {
   summary: string;
   content: string;
   category: string;
+  link: string;
 }
 
 export const newsData: NewsItem[] = [];

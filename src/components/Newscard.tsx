@@ -1,12 +1,16 @@
 import { Link } from "react-router-dom";
+import { useBookmark } from "../context/BookmarkContext";
+import { Bookmark, BookmarkCheck } from "lucide-react";
 
 interface NewsCardProps {
-  id: number;
+  id: string;
   title: string;
   image?: string;
   summary?: string;
-  onDelete?: (id: number) => void;
-  deleting?: boolean;
+  category?: string;
+  link: string;
+  date?: string;
+  fromBookmark?: boolean; // ← penting untuk akses detail lebih cepat
 }
 
 const NewsCard: React.FC<NewsCardProps> = ({
@@ -14,54 +18,75 @@ const NewsCard: React.FC<NewsCardProps> = ({
   title,
   image,
   summary,
-  onDelete,
-  deleting,
+  category,
+  link,
+  date,
+  fromBookmark = false, // default value supaya tidak undefined
 }) => {
-  // 🔹 Gambar default kalau tidak ada atau gagal dimuat
-  const fallbackImage = "https://via.placeholder.com/600x400?text=No+Image";
+  const { addBookmark, removeBookmark, isBookmarked } = useBookmark();
+  const idStr = String(id);
+  const bookmarked = isBookmarked(idStr);
 
-  // Pastikan image selalu string agar tidak undefined
-  const safeImage =
-    typeof image === "string" && image.trim() !== "" ? image : fallbackImage;
+  const handleBookmark = () => {
+    if (bookmarked) {
+      removeBookmark(idStr);
+    } else {
+      addBookmark({
+        id: idStr,
+        title,
+        image,
+        summary,
+        category,
+        link,
+        date,
+      });
+    }
+  };
 
   return (
-    <div className="relative bg-white shadow rounded-lg overflow-hidden transform transition duration-300 hover:scale-105 hover:shadow-xl group">
-      {/* Tombol hapus (opsional) */}
-      {onDelete && (
-        <button
-          onClick={() => onDelete(id)}
-          disabled={deleting}
-          className="absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-300 hover:bg-red-700 disabled:opacity-50"
-        >
-          {deleting ? "Menghapus..." : "Hapus"}
-        </button>
-      )}
-
-      {/* 🔹 Gunakan fallback kalau gambar tidak ada */}
+    <div className="bg-white dark:bg-gray-800 dark:text-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
       <img
-        src={safeImage}
+        src={image}
         alt={title}
-        className="w-full h-48 object-cover bg-gray-200"
-        onError={(e) => {
-          (e.currentTarget as HTMLImageElement).src = fallbackImage;
-        }}
+        className="w-full h-48 object-cover"
+        loading="lazy"
       />
 
-      <div className="p-4">
-        <h2 className="text-lg font-semibold mb-2 line-clamp-2">{title}</h2>
-        <p className="text-gray-600 text-sm line-clamp-3">
-          {summary && summary.trim() !== ""
-            ? summary
-            : "Tidak ada ringkasan tersedia."}
+      <div className="p-4 flex flex-col justify-between h-44">
+        <Link
+          to={`/detail/${encodeURIComponent(idStr)}`}
+          state={{
+            id,
+            title,
+            image,
+            summary,
+            category,
+            link,
+            date,
+            fromBookmark,
+          }}
+        >
+          <h3 className="font-bold text-md mb-1 line-clamp-2 dark:text-white">
+            {title}
+          </h3>
+        </Link>
+
+        <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+          {summary}
         </p>
 
-        <Link
-          to={`/detail/${id}`}
-          state={{ id, title, image, summary }}
-          className="text-blue-600 text-sm font-medium hover:underline mt-2 block"
-        >
-          Baca selengkapnya →
-        </Link>
+        <div className="flex items-center justify-between mt-3">
+          <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+            {category}
+          </span>
+
+          <button
+            onClick={handleBookmark}
+            className="text-blue-600 dark:text-blue-400 transition"
+          >
+            {bookmarked ? <BookmarkCheck size={22} /> : <Bookmark size={22} />}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,47 +1,39 @@
 import { Link } from "react-router-dom";
+import { useTheme } from "../context/ThemeContext";
+import { Sun, Moon } from "lucide-react";
 
 const Navbar: React.FC = () => {
+  const { theme, toggleTheme } = useTheme();
+
   return (
-    <header className="bg-blue-700 text-white shadow-md sticky top-0 z-50">
+    <header className="bg-blue-700 dark:bg-gray-800 text-white shadow-md sticky top-0 z-50">
       <div className="max-w-6xl mx-auto flex items-center justify-between px-4 py-3">
-        <h1 className="text-2xl font-bold flex items-center gap-2 group">
-          <Link to="/" className="flex items-center gap-2">
-            NewsInn
-            <span className="relative w-6 h-6 inline-block">
-              {}
-              <span className="absolute inset-0 transition-opacity duration-300 opacity-100 group-hover:opacity-0">
-                😊
-              </span>
-              {}
-              <span className="absolute inset-0 transition-opacity duration-300 opacity-0 group-hover:opacity-100">
-                😲
-              </span>
-            </span>
-          </Link>
+        <h1 className="text-2xl font-bold">
+          <Link to="/">NewsInn</Link>
         </h1>
 
-        <nav className="space-x-4 hidden sm:block">
+        <nav className="space-x-4 hidden sm:flex items-center">
           <Link to="/" className="hover:underline">
             Home
           </Link>
-          <Link to="/category/otomotif" className="hover:underline">
-            Otomotif
+          <Link to="/bookmark" className="hover:underline">
+            Bookmark
           </Link>
-          <Link to="/category/finansial" className="hover:underline">
-            Finansial
-          </Link>
-          <Link to="/category/teknologi" className="hover:underline">
-            Teknologi
-          </Link>
-
-          {/* ✅ Tambahkan baris ini */}
           <Link
             to="/add"
-            className="hover:underline font-semibold text-yellow-300"
+            className="hover:underline text-yellow-300 font-semibold"
           >
             Tambah Berita
           </Link>
         </nav>
+
+        {/* BUTTON DARK/LIGHT */}
+        <button
+          onClick={toggleTheme}
+          className="p-2 rounded-full bg-white dark:bg-gray-700 text-black dark:text-yellow-300 transition"
+        >
+          {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
       </div>
     </header>
   );

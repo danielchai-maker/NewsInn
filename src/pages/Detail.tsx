@@ -1,8 +1,12 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useLocation } from "react-router-dom";
+import { FaBookmark, FaRegBookmark } from "react-icons/fa";
+import { useBookmark } from "../context/BookmarkContext";
+
+type DetailParams = { id: string };
 
 interface NewsItem {
-  id: number;
+  id: string;
   title: string;
   image: string;
   summary: string;
@@ -13,62 +17,61 @@ interface NewsItem {
 }
 
 const Detail: React.FC = () => {
-  const { id, category } = useParams<{ id: string; category?: string }>();
+  const { id } = useParams<DetailParams>();
+  const location = useLocation();
+  const initialData = location.state as Partial<NewsItem> | undefined;
 
-  const [news, setNews] = useState<NewsItem | null>(null);
-  const [newsList, setNewsList] = useState<NewsItem[]>([]);
-  const [related, setRelated] = useState<string[]>([]);
-  const [loadingRelated, setLoadingRelated] = useState(false);
+  const { addBookmark, removeBookmark, isBookmarked } = useBookmark();
+  const bookmarked = isBookmarked(id || "");
+
+  const [news, setNews] = useState<NewsItem | null>(
+    initialData
+      ? {
+          id: id!,
+          title: initialData.title!,
+          image:
+            initialData.image?.trim() !== ""
+              ? initialData.image!
+              : "https://via.placeholder.com/800x400?text=No+Image",
+          summary: initialData.summary ?? "",
+          content: initialData.summary ?? "",
+          category: initialData.category ?? "",
+          link: initialData.link!,
+          date: initialData.date,
+        }
+      : null
+  );
 
   useEffect(() => {
-    if (!id) return;
+    const fetchDetail = async () => {
+      try {
+        const res = await fetch(
+          `http://localhost:5001/api/getByLink?url=${id}`
+        );
+        const data = await res.json();
+        if (data.error) return console.error(data.error);
 
-    const source = category === "cnn" ? "cnn" : "tempo";
-
-    fetch(`http://localhost:5000/api/rss/${source}`)
-      .then((res) => res.json())
-      .then((data) => {
-        const mapped = data.map((item: any, index: number) => ({
-          id: index,
-          title: item.title,
+        setNews((prev) => ({
+          id: id!,
+          title: data.title,
           image:
-            item.image && item.image.trim() !== ""
-              ? item.image
-              : "https://via.placeholder.com/800x400?text=No+Image",
-          summary: item.snippet || "",
-          content: item.content || item.snippet || "",
-          link: item.link,
-          category: source.toUpperCase(),
-          date: item.date,
+            data.image?.trim() !== ""
+              ? data.image
+              : prev?.image ||
+                "https://via.placeholder.com/800x400?text=No+Image",
+          summary: data.summary ?? prev?.summary ?? "",
+          content: data.content ?? data.summary ?? prev?.content ?? "",
+          category: data.category ?? prev?.category ?? "",
+          link: data.link,
+          date: data.date,
         }));
+      } catch (error) {
+        console.error("Error fetch detail:", error);
+      }
+    };
 
-        setNewsList(mapped);
-
-        const found = mapped.find((i: NewsItem) => i.id === Number(id));
-        setNews(found || null);
-
-        if (found) fetchRelated(found.title);
-      });
-  }, [id, category]);
-
-  const fetchRelated = async (title: string) => {
-    setLoadingRelated(true);
-    try {
-      const res = await fetch("http://localhost:5000/api/recommend", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title }),
-      });
-
-      const data = await res.json();
-
-      setRelated(data.recommendations || []); // array string
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingRelated(false);
-    }
-  };
+    fetchDetail();
+  }, [id]);
 
   if (!news) return <p className="text-center py-10">Memuat berita...</p>;
 
@@ -79,40 +82,45 @@ const Detail: React.FC = () => {
       </Link>
 
       <h1 className="text-3xl font-bold mt-4">{news.title}</h1>
-      <p className="text-gray-500 mt-1">
-        {news.category} —{" "}
-        {news.date ? new Date(news.date).toLocaleDateString("id-ID") : ""}
-      </p>
+
+      <button
+        onClick={() =>
+          bookmarked
+            ? removeBookmark(id!)
+            : addBookmark({
+                id: id!,
+                title: news.title,
+                image: news.image,
+                summary: news.summary,
+                category: news.category,
+                link: news.link,
+                date: news.date,
+              })
+        }
+        className="mt-3 px-4 py-2 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition flex items-center gap-2"
+      >
+        {bookmarked ? <FaBookmark /> : <FaRegBookmark />}
+        {bookmarked ? "Hapus Bookmark" : "Simpan Bookmark"}
+      </button>
 
       <img
         src={news.image}
         alt={news.title}
-        className="rounded-lg mt-6 shadow-md w-full"
+        className="rounded-lg mt-6 w-full shadow-md"
       />
 
       <p className="mt-6 leading-relaxed text-gray-700 whitespace-pre-line">
         {news.content}
       </p>
 
-      {/* Rekomendasi AI */}
-      <h2 className="text-2xl font-semibold mt-12 mb-4">Berita Serupa</h2>
-
-      {loadingRelated ? (
-        <p className="text-gray-500">AI sedang menganalisis judul...</p>
-      ) : related.length > 0 ? (
-        <ul className="space-y-3">
-          {related.map((text, idx) => (
-            <li
-              key={idx}
-              className="p-4 bg-gray-100 rounded-lg shadow hover:bg-gray-200 cursor-pointer transition"
-            >
-              {text}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-gray-500">Tidak ada rekomendasi berita serupa</p>
-      )}
+      <a
+        href={news.link}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-block mt-6 underline text-blue-600 font-semibold"
+      >
+        Baca Selengkapnya di Sumber Asli
+      </a>
     </div>
   );
 };
