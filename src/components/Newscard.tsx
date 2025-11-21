@@ -10,7 +10,7 @@ interface NewsCardProps {
   category?: string;
   link: string;
   date?: string;
-  fromBookmark?: boolean; // ← penting untuk akses detail lebih cepat
+  fromBookmark?: boolean;
 }
 
 const NewsCard: React.FC<NewsCardProps> = ({
@@ -21,7 +21,7 @@ const NewsCard: React.FC<NewsCardProps> = ({
   category,
   link,
   date,
-  fromBookmark = false, // default value supaya tidak undefined
+  fromBookmark = false,
 }) => {
   const { addBookmark, removeBookmark, isBookmarked } = useBookmark();
   const idStr = String(id);
@@ -44,7 +44,7 @@ const NewsCard: React.FC<NewsCardProps> = ({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 dark:text-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
+    <div className="bg-white dark:bg-gray-800 text-black dark:text-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
       <img
         src={image}
         alt={title}
@@ -66,7 +66,7 @@ const NewsCard: React.FC<NewsCardProps> = ({
             fromBookmark,
           }}
         >
-          <h3 className="font-bold text-md mb-1 line-clamp-2 dark:text-white">
+          <h3 className="font-bold text-md mb-1 line-clamp-2 text-black dark:text-white">
             {title}
           </h3>
         </Link>

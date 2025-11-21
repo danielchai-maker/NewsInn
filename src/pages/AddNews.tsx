@@ -45,13 +45,13 @@ const AddNews: React.FC = () => {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6 text-center text-blue-700">
+      <h1 className="text-3xl font-bold mb-6 text-center text-white">
         Tambah Berita Baru 📰
       </h1>
 
       <form
         onSubmit={handleSubmit}
-        className="space-y-4 bg-white p-6 shadow rounded-lg"
+        className="space-y-4 bg-grey-900 p-6 shadow rounded-lg"
       >
         <input
           name="title"
@@ -97,7 +97,7 @@ const AddNews: React.FC = () => {
         <button
           type="submit"
           disabled={loading}
-          className="bg-blue-700 text-white px-4 py-2 rounded hover:bg-blue-800 transition disabled:opacity-50"
+          className="bg-grey-900 text-white px-4 py-2 rounded hover:bg-blue-800 transition disabled:opacity-50"
         >
           {loading ? "Mengirim..." : "Tambah Berita"}
         </button>
