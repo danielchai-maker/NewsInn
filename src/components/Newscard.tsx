@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useBookmark } from "../context/BookmarkContext";
-import { Bookmark, BookmarkCheck } from "lucide-react";
+import { Bookmark, BookmarkCheck, Trash } from "lucide-react";
 
 interface NewsCardProps {
   id: string;
@@ -8,9 +8,13 @@ interface NewsCardProps {
   image?: string;
   summary?: string;
   category?: string;
-  link: string;
+  link?: string;
   date?: string;
+  source?: string;
   fromBookmark?: boolean;
+
+  // Callback untuk Home setelah delete berhasil (Home akan panggil server)
+  onDeleteSuccess?: (id: string) => void;
 }
 
 const NewsCard: React.FC<NewsCardProps> = ({
@@ -21,9 +25,12 @@ const NewsCard: React.FC<NewsCardProps> = ({
   category,
   link,
   date,
+  source,
   fromBookmark = false,
+  onDeleteSuccess,
 }) => {
   const { addBookmark, removeBookmark, isBookmarked } = useBookmark();
+
   const idStr = String(id);
   const bookmarked = isBookmarked(idStr);
 
@@ -43,27 +50,36 @@ const NewsCard: React.FC<NewsCardProps> = ({
     }
   };
 
+  // NOTE: NewsCard TIDAK memanggil API DELETE langsung.
+  // NewsCard hanya memicu callback onDeleteSuccess yang didefinisikan di Home.
+  const handleDeleteLocalNews = () => {
+    if (onDeleteSuccess) onDeleteSuccess(idStr);
+  };
+
   return (
     <div className="bg-white dark:bg-gray-800 text-black dark:text-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
       <img
-        src={image}
+        src={image && image.trim() !== "" ? image : "/no-image.png"}
         alt={title}
         className="w-full h-48 object-cover"
         loading="lazy"
+        onError={(e) => {
+          e.currentTarget.src = "/no-image.png";
+        }}
       />
 
       <div className="p-4 flex flex-col justify-between h-44">
         <Link
           to={`/detail/${encodeURIComponent(idStr)}`}
           state={{
-            id,
+            id: idStr,
             title,
             image,
             summary,
             category,
             link,
             date,
-            fromBookmark,
+            isLocal: source === "local",
           }}
         >
           <h3 className="font-bold text-md mb-1 line-clamp-2 text-black dark:text-white">
@@ -77,15 +93,38 @@ const NewsCard: React.FC<NewsCardProps> = ({
 
         <div className="flex items-center justify-between mt-3">
           <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-            {category}
+            {source === "local" ? "Berita Lokal" : category}
           </span>
 
-          <button
-            onClick={handleBookmark}
-            className="text-blue-600 dark:text-blue-400 transition"
-          >
-            {bookmarked ? <BookmarkCheck size={22} /> : <Bookmark size={22} />}
-          </button>
+          {fromBookmark ? (
+            <button
+              onClick={() => removeBookmark(idStr)}
+              className="text-red-500 dark:text-red-400 transition"
+              title="Hapus dari bookmark"
+            >
+              <Trash size={22} />
+            </button>
+          ) : source === "local" ? (
+            <button
+              onClick={handleDeleteLocalNews}
+              className="text-red-500 dark:text-red-400 transition"
+              title="Hapus berita lokal"
+            >
+              <Trash size={22} />
+            </button>
+          ) : (
+            <button
+              onClick={handleBookmark}
+              className="text-blue-600 dark:text-blue-400 transition"
+              title="Tambahkan/Hapus Bookmark"
+            >
+              {bookmarked ? (
+                <BookmarkCheck size={22} />
+              ) : (
+                <Bookmark size={22} />
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

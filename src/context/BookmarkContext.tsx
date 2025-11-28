@@ -7,7 +7,7 @@ export interface BookmarkItem {
   image?: string;
   summary?: string;
   category?: string;
-  link: string;
+  link?: string;
   date?: string;
 }
 

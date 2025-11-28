@@ -7,13 +7,18 @@ export const recommendRoute = new Elysia().post(
     const { title } = body as { title: string };
 
     const prompt = `
-    Berikan 3 judul berita serupa hanya dalam bentuk daftar bullet tanpa penjelasan:
-    Judul: ${title}
-  `;
+    Berikan 3 judul berita lain yang relevan dan mirip.
+    Format bullet list:
+    - Judul 1
+    - Judul 2
+    - Judul 3
+
+    Judul: "${title}"
+    `;
 
     const result = await geminiAgent(prompt);
 
-    // Convert AI output string to array
+    // Format AI output menjadi array
     const recommendations = result
       .split("\n")
       .map((line: string) => line.replace(/^\d+\.|-/, "").trim())

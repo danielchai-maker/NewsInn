@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getToken } from "../authClient";
 
 const AddNews: React.FC = () => {
   const navigate = useNavigate();
@@ -25,14 +26,28 @@ const AddNews: React.FC = () => {
     setMessage("");
 
     try {
+      const token = getToken(); // <-- ambil token login user
+
       const res = await fetch("http://localhost:5000/api/news", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`, // <-- DITAMBAHKAN
+        },
         body: JSON.stringify(form),
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Gagal menambah berita");
+      // ---- FIX NOT_FOUND (backend mengirim plain text) ----
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(text); // backend mungkin kirim text biasa
+      }
+
+      if (!res.ok)
+        throw new Error(data.error || data.message || "Gagal menambah berita");
 
       setMessage("✅ Berita berhasil ditambahkan!");
       setTimeout(() => navigate("/"), 1500);
@@ -103,7 +118,7 @@ const AddNews: React.FC = () => {
         </button>
       </form>
 
-      {message && <p className="mt-4 text-center text-gray-700">{message}</p>}
+      {message && <p className="mt-4 text-center text-white">{message}</p>}
     </div>
   );
 };

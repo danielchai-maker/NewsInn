@@ -4,6 +4,8 @@ import Home from "./pages/Home";
 import Detail from "./pages/Detail";
 import AddNews from "./pages/AddNews";
 import Bookmarks from "./pages/Bookmark";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -22,6 +24,10 @@ const App: React.FC = () => {
           <Route path="/detail/:id" element={<Detail />} />
           <Route path="/add" element={<AddNews />} />
           <Route path="/bookmark" element={<Bookmarks />} />
+
+          {/* 🔥 FIX: Tambahkan halaman login & signup */}
+          <Route path="/login" element={<Login />} />
+          <Route path="/signup" element={<Signup />} />
         </Routes>
       </div>
 

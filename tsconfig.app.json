@@ -29,5 +29,11 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "server/index.ts", "server/data/newsData.ts"]
+  "include": [
+    "src",
+    "server/index.ts",
+    "server/data/newsData.ts",
+    "server/authRoute.ts",
+    "server/prisma.ts"
+  ]
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import NewsCard from "../components/Newscard";
+import { useAuth } from "../context/AuthContext";
 
 interface ApiNewsItem {
   title: string;
@@ -10,90 +11,145 @@ interface ApiNewsItem {
   date?: string;
 }
 
+interface LocalNewsItem {
+  id: string;
+  title: string;
+  image: string;
+  summary: string;
+  content: string;
+  category: string;
+  date: string;
+}
+
 interface NewsItem {
   id: string;
   title: string;
   image: string;
   summary?: string;
   content?: string;
-  link: string;
+  link?: string;
   date?: string;
-  source: string; // CNN / TEMPO
+  source: string; // cnn / tempo / local
 }
 
 const Home: React.FC = () => {
-  const { source } = useParams(); // 🔥 menangkap /source/cnn
+  const { source } = useParams();
+  const { user } = useAuth();
+
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // ============================================
-  // FETCH NEWS FROM BOTH SOURCES
-  // ============================================
-  useEffect(() => {
-    const fetchAllNews = async () => {
-      setLoading(true);
-      const sources = ["cnn", "tempo"];
-      let allNews: NewsItem[] = [];
+  // FETCH NEWS (LOCAL + RSS)
+  const loadNews = async () => {
+    setLoading(true);
+    let allNews: NewsItem[] = [];
 
-      for (const src of sources) {
-        try {
-          const res = await fetch(`http://localhost:5000/api/rss/${src}`);
-          const data: ApiNewsItem[] = await res.json();
+    // LOCAL NEWS
+    try {
+      const res = await fetch("http://localhost:5000/api/news");
+      const localData: LocalNewsItem[] = await res.json();
 
-          const mappedNews = data.map((item) => ({
-            id: item.link,
-            title: item.title,
-            image:
-              item.image && item.image.trim() !== ""
-                ? item.image
-                : "https://via.placeholder.com/600x400?text=No+Image",
-            summary: item.snippet || "",
-            link: item.link,
-            date: item.date,
-            source: src, // simpan asal sumber
-          }));
+      const mappedLocal = localData.map((item) => ({
+        id: String(item.id),
+        title: item.title,
+        image: item.image?.trim() || "/no-image.png",
+        summary: item.summary,
+        content: item.content,
+        date: item.date,
+        source: "local",
+      }));
 
-          allNews = [...allNews, ...mappedNews];
-        } catch (err) {
-          console.error(`Error fetching from ${src}`, err);
-        }
+      allNews = [...allNews, ...mappedLocal];
+    } catch (err) {
+      console.error("Error loading local news:", err);
+    }
+
+    // RSS NEWS
+    const rssSources = ["cnn", "tempo"];
+
+    for (const src of rssSources) {
+      try {
+        const res = await fetch(`http://localhost:5000/api/rss/${src}`);
+        const data: ApiNewsItem[] = await res.json();
+
+        const mappedNews = data.map((item) => ({
+          id: item.link,
+          title: item.title,
+          image: item.image?.trim() || "/no-image.png",
+          summary: item.snippet || "",
+          link: item.link,
+          date: item.date,
+          source: src,
+        }));
+
+        allNews = [...allNews, ...mappedNews];
+      } catch (err) {
+        console.error(`Error fetching RSS for ${src}:`, err);
       }
+    }
 
-      // Sort dari terbaru → lama
-      allNews.sort((a, b) => {
-        if (!a.date || !b.date) return 0;
-        return new Date(b.date).getTime() - new Date(a.date).getTime();
+    // SORT
+    allNews.sort((a, b) => {
+      const dateA = a.date ? new Date(a.date).getTime() : 0;
+      const dateB = b.date ? new Date(b.date).getTime() : 0;
+      return dateB - dateA;
+    });
+
+    setNews(allNews);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    loadNews();
+  }, [user]);
+
+  // DELETE LOCAL NEWS (frontend triggers server DELETE here)
+  const handleDeleteLocalSuccess = async (id: string) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("Anda harus login untuk menghapus berita.");
+      return;
+    }
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/news/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
-      setNews(allNews);
-      setLoading(false);
-    };
+      const result = await res.json();
+      console.log("DELETE RESPONSE:", result);
 
-    fetchAllNews();
-  }, []);
+      if (result.success) {
+        // update UI immediate
+        setNews((prev) => prev.filter((item) => item.id !== id));
+      } else {
+        alert(result.message || "Gagal menghapus berita.");
+      }
+    } catch (err) {
+      console.error("DELETE ERROR:", err);
+      alert("Gagal menghapus berita (network/error).");
+    }
+  };
 
-  // ============================================
-  // FILTER BY SOURCE (CNN / TEMPO)
-  // ============================================
+  // FILTER
   const filteredNews = useMemo(() => {
-    if (!source) return news; // halaman Home → semua berita
-
+    if (!source) return news;
     return news.filter(
       (item) => item.source.toLowerCase() === source.toLowerCase()
     );
-  }, [source, news]);
+  }, [news, source]);
 
-  // ============================================
-  // SLIDER (only show on HOME)
-  // ============================================
+  // SLIDER
   const featuredNews = filteredNews.slice(0, 5);
 
   useEffect(() => {
-    if (!featuredNews.length || source) return; // jangan tampilkan slider di halaman /source/...
+    if (!featuredNews.length || source) return;
 
     setCurrentSlide(0);
-
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % featuredNews.length);
     }, 5000);
@@ -101,28 +157,25 @@ const Home: React.FC = () => {
     return () => clearInterval(interval);
   }, [featuredNews.length, source]);
 
-  // ============================================
   // LOADING
-  // ============================================
   if (loading) {
     return (
-      <div className="text-center py-10 text-xl font-semibold">
+      <div className="text-center py-10 text-xl font-semibold text-white">
         Memuat berita...
       </div>
     );
   }
 
+  // RENDER
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 dark:text-white">
-      {/* =============================== */}
-      {/* SLIDER — Only for Home */}
-      {/* =============================== */}
+    <div className="max-w-7xl mx-auto px-4 py-6 text-white dark:text-white">
+      {/* SLIDER */}
       {!source && featuredNews.length > 0 && (
         <div className="relative w-full h-96 mb-10 overflow-hidden rounded-2xl shadow-lg">
           {featuredNews.map((item, index) => (
             <div
               key={item.id}
-              className={`absolute inset-0 w-full h-full transition-opacity duration-700 ${
+              className={`absolute inset-0 transition-opacity duration-700 ${
                 index === currentSlide ? "opacity-100" : "opacity-0"
               }`}
             >
@@ -131,7 +184,7 @@ const Home: React.FC = () => {
                 alt={item.title}
                 className="w-full h-full object-cover"
               />
-              <div className="absolute bottom-0 w-full bg-black bg-opacity-50 p-4 text-white text-xl font-bold">
+              <div className="absolute bottom-0 w-full bg-black bg-opacity-50 p-4 text-xl font-bold">
                 {item.title}
               </div>
             </div>
@@ -139,26 +192,33 @@ const Home: React.FC = () => {
         </div>
       )}
 
-      {/* TITLE */}
+      {/* HEADER */}
       <h2 className="text-2xl font-bold mb-4">
         {!source
           ? "Semua Berita"
           : source.toUpperCase() === "CNN"
           ? "Berita CNN Indonesia"
-          : "Berita Tempo.co"}
+          : source.toUpperCase() === "TEMPO"
+          ? "Berita Tempo.co"
+          : "Berita Lokal"}
       </h2>
 
-      {/* GRID NEWS */}
+      {/* LIST NEWS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredNews.map((item) => (
-          <NewsCard key={item.id} {...item} />
+          <NewsCard
+            key={item.id}
+            {...item}
+            fromBookmark={false}
+            {...(item.source === "local"
+              ? { onDeleteSuccess: () => handleDeleteLocalSuccess(item.id) }
+              : {})}
+          />
         ))}
       </div>
 
       {filteredNews.length === 0 && (
-        <div className="text-center py-10 text-gray-500 dark:text-gray-400">
-          Tidak ada berita untuk sumber ini.
-        </div>
+        <div className="text-center py-10 text-gray-400">Tidak ada berita.</div>
       )}
     </div>
   );
