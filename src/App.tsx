@@ -16,16 +16,22 @@ const App: React.FC = () => {
 
       <div className="max-w-6xl mx-auto p-4">
         <Routes>
+          {/* HOME */}
           <Route path="/" element={<Home />} />
 
-          {/* 🔥 FILTER SUMBER */}
+          {/* FILTER KATEGORI */}
+          <Route path="/kategori/:category" element={<Home />} />
+
+          {/* FILTER SUMBER */}
           <Route path="/source/:source" element={<Home />} />
+
+          {/* FILTER SUMBER + KATEGORI */}
+          <Route path="/source/:source/:category" element={<Home />} />
 
           <Route path="/detail/:id" element={<Detail />} />
           <Route path="/add" element={<AddNews />} />
           <Route path="/bookmark" element={<Bookmarks />} />
 
-          {/* 🔥 FIX: Tambahkan halaman login & signup */}
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
         </Routes>

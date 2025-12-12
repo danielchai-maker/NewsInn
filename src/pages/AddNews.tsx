@@ -60,7 +60,7 @@ const AddNews: React.FC = () => {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6 text-center text-white">
+      <h1 className="text-3xl font-bold mb-6 text-center text-black dark:text-white">
         Tambah Berita Baru 📰
       </h1>
 
@@ -73,7 +73,7 @@ const AddNews: React.FC = () => {
           placeholder="Judul Berita"
           value={form.title}
           onChange={handleChange}
-          className="w-full p-3 border rounded"
+          className="w-full p-3 border rounded  text-black dark:text-white"
           required
         />
         <input
@@ -81,7 +81,7 @@ const AddNews: React.FC = () => {
           placeholder="URL Gambar (https://...)"
           value={form.image}
           onChange={handleChange}
-          className="w-full p-3 border rounded"
+          className="w-full p-3 border rounded  text-black dark:text-white"
           required
         />
         <input
@@ -89,7 +89,7 @@ const AddNews: React.FC = () => {
           placeholder="Ringkasan Berita"
           value={form.summary}
           onChange={handleChange}
-          className="w-full p-3 border rounded"
+          className="w-full p-3 border rounded text-black dark:text-white"
           required
         />
         <textarea
@@ -97,7 +97,7 @@ const AddNews: React.FC = () => {
           placeholder="Isi Lengkap Berita"
           value={form.content}
           onChange={handleChange}
-          className="w-full p-3 border rounded h-32"
+          className="w-full p-3 border rounded h-32 text-black dark:text-white"
           required
         />
         <input
@@ -105,20 +105,22 @@ const AddNews: React.FC = () => {
           placeholder="Kategori (contoh: Otomotif, Finansial)"
           value={form.category}
           onChange={handleChange}
-          className="w-full p-3 border rounded"
+          className="w-full p-3 border rounded text-black dark:text-white"
           required
         />
 
         <button
           type="submit"
           disabled={loading}
-          className="bg-grey-900 text-white px-4 py-2 rounded hover:bg-blue-800 transition disabled:opacity-50"
+          className="bg-black dark:bg-white text-white dark:text-black px-4 py-2 rounded hover:bg-blue-800 transition disabled:opacity-50 dark:hover:bg-gray-500"
         >
           {loading ? "Mengirim..." : "Tambah Berita"}
         </button>
       </form>
 
-      {message && <p className="mt-4 text-center text-white">{message}</p>}
+      {message && (
+        <p className="mt-4 text-center text-black dark:text-white">{message}</p>
+      )}
     </div>
   );
 };

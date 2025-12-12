@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
 import NewsCard from "../components/Newscard";
 import { useAuth } from "../context/AuthContext";
+import SliderItem from "../components/SliderItem";
 
 interface ApiNewsItem {
   title: string;
@@ -9,6 +10,7 @@ interface ApiNewsItem {
   image?: string;
   link: string;
   date?: string;
+  category?: string;
 }
 
 interface LocalNewsItem {
@@ -29,18 +31,18 @@ interface NewsItem {
   content?: string;
   link?: string;
   date?: string;
-  source: string; // cnn / tempo / local
+  category?: string;
+  source: string;
 }
 
 const Home: React.FC = () => {
-  const { source } = useParams();
+  const { source, category } = useParams();
   const { user } = useAuth();
 
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  // FETCH NEWS (LOCAL + RSS)
   const loadNews = async () => {
     setLoading(true);
     let allNews: NewsItem[] = [];
@@ -57,6 +59,8 @@ const Home: React.FC = () => {
         summary: item.summary,
         content: item.content,
         date: item.date,
+        category: item.category?.toLowerCase(),
+        link: `/detail/${item.id}`,
         source: "local",
       }));
 
@@ -80,6 +84,8 @@ const Home: React.FC = () => {
           summary: item.snippet || "",
           link: item.link,
           date: item.date,
+          category: item.category?.toLowerCase(),
+          content: "",
           source: src,
         }));
 
@@ -89,11 +95,11 @@ const Home: React.FC = () => {
       }
     }
 
-    // SORT
+    // SORTING BERDASARKAN TANGGAL
     allNews.sort((a, b) => {
-      const dateA = a.date ? new Date(a.date).getTime() : 0;
-      const dateB = b.date ? new Date(b.date).getTime() : 0;
-      return dateB - dateA;
+      const aDate = a.date ? new Date(a.date).getTime() : 0;
+      const bDate = b.date ? new Date(b.date).getTime() : 0;
+      return bDate - aDate;
     });
 
     setNews(allNews);
@@ -104,121 +110,173 @@ const Home: React.FC = () => {
     loadNews();
   }, [user]);
 
-  // DELETE LOCAL NEWS (frontend triggers server DELETE here)
   const handleDeleteLocalSuccess = async (id: string) => {
     const token = localStorage.getItem("token");
-    if (!token) {
-      alert("Anda harus login untuk menghapus berita.");
-      return;
-    }
+    if (!token) return alert("Anda harus login untuk menghapus berita.");
 
     try {
       const res = await fetch(`http://localhost:5000/api/news/${id}`, {
         method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const result = await res.json();
-      console.log("DELETE RESPONSE:", result);
 
       if (result.success) {
-        // update UI immediate
         setNews((prev) => prev.filter((item) => item.id !== id));
       } else {
-        alert(result.message || "Gagal menghapus berita.");
+        alert("Gagal menghapus berita.");
       }
     } catch (err) {
       console.error("DELETE ERROR:", err);
-      alert("Gagal menghapus berita (network/error).");
     }
   };
 
-  // FILTER
   const filteredNews = useMemo(() => {
-    if (!source) return news;
-    return news.filter(
-      (item) => item.source.toLowerCase() === source.toLowerCase()
-    );
-  }, [news, source]);
+    let data = news;
 
-  // SLIDER
+    if (source) {
+      data = data.filter(
+        (item) => item.source.toLowerCase() === source.toLowerCase()
+      );
+    }
+
+    if (category && category.toLowerCase() !== "all") {
+      data = data.filter(
+        (item) => item.category?.toLowerCase() === category.toLowerCase()
+      );
+    }
+
+    return data;
+  }, [news, source, category]);
+
   const featuredNews = filteredNews.slice(0, 5);
 
+  // AUTOPLAY SLIDER
   useEffect(() => {
-    if (!featuredNews.length || source) return;
+    if (!featuredNews.length || source || category) return;
 
-    setCurrentSlide(0);
     const interval = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % featuredNews.length);
     }, 5000);
 
     return () => clearInterval(interval);
-  }, [featuredNews.length, source]);
+  }, [featuredNews.length, source, category]);
 
-  // LOADING
   if (loading) {
     return (
-      <div className="text-center py-10 text-xl font-semibold text-white">
+      <div className="text-center py-10 text-xl font-semibold animate-fadeIn">
         Memuat berita...
       </div>
     );
   }
 
-  // RENDER
   return (
-    <div className="max-w-7xl mx-auto px-4 py-6 text-white dark:text-white">
-      {/* SLIDER */}
-      {!source && featuredNews.length > 0 && (
-        <div className="relative w-full h-96 mb-10 overflow-hidden rounded-2xl shadow-lg">
+    <div className="animate-fadeIn w-full text-white dark:text-white">
+      {!source && !category && featuredNews.length > 0 && (
+        <div className="relative w-full h-[800px] md:h-[420px] lg:h-[500px] mb-16 overflow-hidden rounded-none">
           {featuredNews.map((item, index) => (
             <div
               key={item.id}
-              className={`absolute inset-0 transition-opacity duration-700 ${
-                index === currentSlide ? "opacity-100" : "opacity-0"
-              }`}
+              className={`
+                absolute inset-0 transition-all duration-700
+                ${
+                  index === currentSlide
+                    ? "opacity-100 scale-100"
+                    : "opacity-0 scale-105"
+                }
+              `}
             >
-              <img
-                src={item.image}
-                alt={item.title}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute bottom-0 w-full bg-black bg-opacity-50 p-4 text-xl font-bold">
-                {item.title}
-              </div>
+              <SliderItem id={item.id} title={item.title} image={item.image} />
             </div>
           ))}
+
+          {/* Buttons */}
+          <button
+            onClick={() =>
+              setCurrentSlide((prev) =>
+                prev === 0 ? featuredNews.length - 1 : prev - 1
+              )
+            }
+            className="absolute left-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 rounded-full shadow-lg"
+          >
+            {"<"}
+          </button>
+
+          <button
+            onClick={() =>
+              setCurrentSlide((prev) => (prev + 1) % featuredNews.length)
+            }
+            className="absolute right-4 top-1/2 -translate-y-1/2 bg-white/80 p-3 rounded-full shadow-lg"
+          >
+            {">"}
+          </button>
+
+          {/* Dots */}
+          <div className="absolute bottom-1 w-full flex justify-center gap-2">
+            {featuredNews.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentSlide(i)}
+                className={`
+                  h-3 rounded-full transition-all
+                  ${currentSlide === i ? "bg-blue-600 w-8" : "bg-gray-300 w-3"}
+                `}
+              />
+            ))}
+          </div>
         </div>
       )}
 
-      {/* HEADER */}
-      <h2 className="text-2xl font-bold mb-4">
-        {!source
+      {/* TITLE */}
+      <h2 className="text-2xl font-bold mb-4 animate-slideUp px-4">
+        {!source && !category
           ? "Semua Berita"
-          : source.toUpperCase() === "CNN"
-          ? "Berita CNN Indonesia"
-          : source.toUpperCase() === "TEMPO"
-          ? "Berita Tempo.co"
-          : "Berita Lokal"}
+          : source
+          ? `Berita ${source.toUpperCase()}`
+          : `Kategori: ${category}`}
       </h2>
 
-      {/* LIST NEWS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredNews.map((item) => (
-          <NewsCard
-            key={item.id}
-            {...item}
-            fromBookmark={false}
-            {...(item.source === "local"
-              ? { onDeleteSuccess: () => handleDeleteLocalSuccess(item.id) }
-              : {})}
-          />
-        ))}
+      {/* FULL WIDTH GRID */}
+      <div className="w-screen relative left-1/2 -translate-x-1/2 px-2 sm:px-4">
+        <div
+          className="
+          w-full
+          grid
+          grid-cols-2
+          sm:grid-cols-3
+          md:grid-cols-4
+          xl:grid-cols-5
+          gap-4
+        "
+        >
+          {filteredNews.map((item, i) => (
+            <div
+              key={item.id}
+              className="
+              w-full
+              transition-all duration-500
+              transform hover:-translate-y-2 hover:scale-105 hover:shadow-2xl
+              rounded-xl
+            "
+              style={{ animationDelay: `${i * 0.04}s` }}
+            >
+              <NewsCard
+                {...item}
+                fromBookmark={false}
+                {...(item.source === "local"
+                  ? { onDeleteSuccess: () => handleDeleteLocalSuccess(item.id) }
+                  : {})}
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
       {filteredNews.length === 0 && (
-        <div className="text-center py-10 text-gray-400">Tidak ada berita.</div>
+        <div className="text-center py-10 text-gray-400 animate-fadeIn">
+          Tidak ada berita.
+        </div>
       )}
     </div>
   );

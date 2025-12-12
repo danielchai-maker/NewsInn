@@ -18,6 +18,11 @@ interface NewsItem {
   isLocal?: boolean;
 }
 
+interface RecItem {
+  title: string;
+  url: string;
+}
+
 const Detail: React.FC = () => {
   const { id } = useParams<DetailParams>();
   const navigate = useNavigate();
@@ -28,7 +33,8 @@ const Detail: React.FC = () => {
   const { addBookmark, removeBookmark, isBookmarked } = useBookmark();
   const bookmarked = isBookmarked(id || "");
 
-  const [recommendations, setRecommendations] = useState<string[]>([]);
+  const [recommendations, setRecommendations] = useState<RecItem[]>([]);
+
   const [news, setNews] = useState<NewsItem | null>(
     initialData
       ? {
@@ -48,60 +54,52 @@ const Detail: React.FC = () => {
       : null
   );
 
-  // 🔍 DEBUG — Log semua data penting
-  console.log("----- DETAIL DEBUG -----");
-  console.log("URL id:", id);
-  console.log("Initial Data from state:", initialData);
-  console.log("Final news.id:", news?.id);
-  console.log("news.isLocal:", news?.isLocal);
-  console.log("Bookmarked:", bookmarked);
-  console.log("-------------------------");
-
-  // ======================================================
-  // FETCH DETAIL RSS (hanya jika bukan local news)
-  // ======================================================
+  // ===========================
+  // FETCH DETAIL RSS ARTICLES
+  // ===========================
   useEffect(() => {
     if (initialData) return;
 
-    const fetchDetail = async () => {
+    const loadDetail = async () => {
       try {
-        const res = await fetch(
-          `http://localhost:5001/api/getByLink?url=${encodeURIComponent(id!)}`
-        );
+        const url = `http://localhost:5001/api/getByLink?url=${encodeURIComponent(
+          id!
+        )}`;
 
+        const res = await fetch(url);
         const data = await res.json();
-        if (data.error) return;
 
-        setNews((prev) => ({
+        if (!data || data.error) return;
+
+        setNews({
           id: id!,
-          title: data.title ?? prev?.title ?? "",
+          title: data.title ?? "",
           image: data.image?.trim()
             ? data.image
-            : prev?.image ??
-              "https://via.placeholder.com/800x400?text=No+Image",
-          summary: data.summary ?? prev?.summary ?? "",
-          content: data.content ?? data.summary ?? prev?.content ?? "",
-          category: data.category ?? prev?.category ?? "",
-          link: data.link ?? prev?.link ?? "",
-          date: data.date ?? prev?.date,
+            : "https://via.placeholder.com/800x400?text=No+Image",
+          summary: data.summary ?? "",
+          content: data.content ?? data.summary ?? "",
+          category: data.category ?? "",
+          link: data.link ?? id!,
+          date: data.date,
           isLocal: false,
-          source: prev?.source,
-        }));
-      } catch {
-        console.error("Gagal fetch detail RSS");
+          source: data.source,
+        });
+      } catch (err) {
+        console.error("❌ Gagal fetch detail RSS:", err);
       }
     };
 
-    fetchDetail();
-  }, [id]);
+    loadDetail();
+  }, [id, initialData]);
 
-  // ======================================================
+  // ========================================
   // FETCH AI RECOMMENDATION
-  // ======================================================
+  // ========================================
   useEffect(() => {
     if (!news?.title) return;
 
-    const fetchRecommendations = async () => {
+    const fetchRec = async () => {
       try {
         const res = await fetch("http://localhost:5000/api/recommend", {
           method: "POST",
@@ -110,18 +108,21 @@ const Detail: React.FC = () => {
         });
 
         const data = await res.json();
-        if (data.recommendations) setRecommendations(data.recommendations);
-      } catch (error) {
-        console.error("Error AI recommendation:", error);
+
+        if (Array.isArray(data.recommendations)) {
+          setRecommendations(data.recommendations.slice(0, 3));
+        }
+      } catch (err) {
+        console.error("Error AI recommendation:", err);
       }
     };
 
-    fetchRecommendations();
+    fetchRec();
   }, [news?.title]);
 
-  // ======================================================
+  // ===========================
   // DELETE LOCAL NEWS
-  // ======================================================
+  // ===========================
   const handleDelete = async () => {
     if (!news?.isLocal) {
       alert("Hanya berita lokal yang bisa dihapus.");
@@ -131,41 +132,38 @@ const Detail: React.FC = () => {
     if (!window.confirm("Yakin ingin menghapus berita ini?")) return;
 
     try {
-      const realId = String(news.id);
       const token = localStorage.getItem("token");
 
-      console.log("📌 FE DELETE TOKEN:", token); // DEBUG
-
       const res = await fetch(
-        `http://localhost:5000/api/news/${encodeURIComponent(realId)}`,
+        `http://localhost:5000/api/news/${encodeURIComponent(news.id)}`,
         {
           method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
       const data = await res.json();
-      console.log("DELETE RESPONSE:", data);
 
       if (!res.ok) {
-        alert("Gagal menghapus berita: " + data.message);
+        alert("Gagal menghapus: " + data.message);
         return;
       }
 
       alert("Berita berhasil dihapus!");
       navigate("/");
-    } catch (err) {
-      alert("Terjadi kesalahan saat menghapus.");
+    } catch {
+      alert("Terjadi kesalahan saat menghapus berita.");
     }
   };
 
-  // ======================================================
-  // RENDER
-  // ======================================================
-  if (!news) return <p className="text-center py-10">Memuat berita...</p>;
+  if (!news)
+    return (
+      <p className="text-center py-10 text-black dark:text-white">
+        Memuat berita...
+      </p>
+    );
+
+  const isCNN = news.link?.includes("cnnindonesia.com");
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -173,7 +171,7 @@ const Detail: React.FC = () => {
         to="/"
         className="text-black dark:text-white text-sm hover:underline"
       >
-        ← Kembali ke Beranda
+        ← Kembali
       </Link>
 
       <div className="flex items-center justify-between mt-4">
@@ -184,7 +182,7 @@ const Detail: React.FC = () => {
         {news.isLocal && (
           <button
             onClick={handleDelete}
-            className="px-3 py-2 bg-red-600 rounded text-black dark:text-white text-sm flex gap-2 items-center hover:bg-red-700 transition"
+            className="px-3 py-2 bg-red-600 text-white text-sm rounded flex gap-2 items-center hover:bg-red-700"
           >
             <FaTrash />
             Hapus
@@ -212,11 +210,25 @@ const Detail: React.FC = () => {
         {bookmarked ? "Hapus Bookmark" : "Simpan Bookmark"}
       </button>
 
-      <img
-        src={news.image}
-        alt={news.title}
-        className="rounded-lg mt-6 w-full shadow-md"
-      />
+      {/* CNN VIDEO MODE */}
+      {isCNN ? (
+        <div className="w-full h-[420px] mt-6 rounded-lg overflow-hidden shadow-md">
+          <iframe
+            src={news.link}
+            className="w-full h-full"
+            allow="autoplay; encrypted-media"
+            allowFullScreen
+            loading="lazy"
+            style={{ border: "none" }}
+          ></iframe>
+        </div>
+      ) : (
+        <img
+          src={news.image}
+          alt={news.title}
+          className="rounded-lg mt-6 w-full shadow-md"
+        />
+      )}
 
       <p className="mt-6 leading-relaxed text-black dark:text-white whitespace-pre-line">
         {news.content}
@@ -226,21 +238,33 @@ const Detail: React.FC = () => {
         <a
           href={news.link}
           target="_blank"
-          rel="noopener noreferrer"
           className="inline-block mt-6 underline text-black dark:text-white font-semibold"
         >
           Baca Selengkapnya di Sumber Asli
         </a>
       )}
 
+      {/* AI RECOMMENDATION */}
       {recommendations.length > 0 && (
         <div className="mt-10 bg-white dark:bg-gray-800 p-5 rounded-lg">
           <h2 className="text-xl font-bold mb-3 text-black dark:text-white">
             Rekomendasi Berita Lain
           </h2>
+
           <ul className="list-disc ml-5 text-black dark:text-white">
             {recommendations.map((rec, idx) => (
-              <li key={idx}>{rec}</li>
+              <li key={idx} className="my-2">
+                <a
+                  href={`https://www.google.com/search?q=${encodeURIComponent(
+                    rec.title
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:text-blue-400"
+                >
+                  🔍 {rec.title}
+                </a>
+              </li>
             ))}
           </ul>
         </div>

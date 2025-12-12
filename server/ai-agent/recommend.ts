@@ -1,30 +1,68 @@
 import { Elysia } from "elysia";
 import { geminiAgent } from "./index";
+import { getAllNews } from "../rssData/newsStore";
 
 export const recommendRoute = new Elysia().post(
   "/api/recommend",
   async ({ body }) => {
     const { title } = body as { title: string };
 
-    const prompt = `
-    Berikan 3 judul berita lain yang relevan dan mirip.
-    Format bullet list:
-    - Judul 1
-    - Judul 2
-    - Judul 3
+    const allNews = getAllNews();
 
-    Judul: "${title}"
+    // kirim list judul ke AI biar dia pilih mana yg relevan
+    const list = allNews
+      .slice(0, 200) // jangan kebanyakan
+      .map((n) => n.title)
+      .join("\n");
+
+    const prompt = `
+Berikut adalah daftar judul berita:
+
+${list}
+
+Tugasmu:
+- Pilih **3 judul** yang paling mirip / relevan dengan berita berjudul: "${title}"
+- Jawab HANYA JSON valid berikut:
+
+{
+  "titles": [
+    "judul 1",
+    "judul 2",
+    "judul 3"
+  ]
+}
     `;
 
-    const result = await geminiAgent(prompt);
+    try {
+      const raw = await geminiAgent(prompt);
 
-    // Format AI output menjadi array
-    const recommendations = result
-      .split("\n")
-      .map((line: string) => line.replace(/^\d+\.|-/, "").trim())
-      .filter((x: string) => x.length > 0)
-      .slice(0, 3);
+      const json = raw.slice(raw.indexOf("{"), raw.lastIndexOf("}") + 1);
+      const parsed = JSON.parse(json);
 
-    return { recommendations };
+      const titles: string[] = parsed.titles || [];
+
+      // SEKARANG pencocokan pasti match
+      const results = titles
+        .map((rec) => {
+          const found = allNews.find(
+            (item) => item.title.toLowerCase() === rec.toLowerCase()
+          );
+
+          if (found) {
+            return {
+              title: found.title,
+              url: found.link,
+            };
+          }
+
+          return null;
+        })
+        .filter(Boolean);
+
+      return { recommendations: results };
+    } catch (err) {
+      console.error("❌ Recommend Error:", err);
+      return { recommendations: [] };
+    }
   }
 );

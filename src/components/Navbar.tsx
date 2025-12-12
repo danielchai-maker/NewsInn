@@ -1,34 +1,51 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation, useParams } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { Sun, Moon, ChevronDown } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { ThemeTogglerButton } from "./animate-ui/components/buttons/theme-toggler";
 
 const Navbar: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
-  const [openMenu, setOpenMenu] = useState<"source" | "profile" | null>(null);
+
+  const [openMenu, setOpenMenu] = useState<
+    "source" | "profile" | "category" | null
+  >(null);
+  const [categories, setCategories] = useState<string[]>([]);
+
+  const { category } = useParams();
+  const nav = useNavigate();
+  const location = useLocation();
 
   const sourceRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
-  const nav = useNavigate();
+  const categoryRef = useRef<HTMLDivElement>(null);
 
-  // CLOSE DROPDOWNS WHEN CLICK OUTSIDE
+  // FETCH KATEGORI
   useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    fetch("http://localhost:5000/api/categories")
+      .then((res) => res.json())
+      .then((data: string[]) => setCategories(data))
+      .catch((err) => console.error("Gagal fetch kategori:", err));
+  }, []);
+
+  // CLOSE DROPDOWN KETIKA KLIK LUAR
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
       if (
         sourceRef.current &&
         !sourceRef.current.contains(e.target as Node) &&
         profileRef.current &&
-        !profileRef.current.contains(e.target as Node)
+        !profileRef.current.contains(e.target as Node) &&
+        categoryRef.current &&
+        !categoryRef.current.contains(e.target as Node)
       ) {
         setOpenMenu(null);
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
   const handleLogout = () => {
@@ -41,22 +58,55 @@ const Navbar: React.FC = () => {
     { id: "tempo", label: "Tempo" },
   ];
 
+  const activeCategory = category || "";
+
   return (
-    <header className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50">
-      <div className="max-w-6xl mx-auto flex items-center justify-between px-4 py-3">
+    <header className="bg-white dark:bg-gray-800 shadow-md sticky top-0 z-50 w-full">
+      {/* FULL WIDTH WRAPPER */}
+      <div className="w-full px-4 md:px-6 flex items-center justify-between py-3">
+        {/* LOGO KIRI */}
         <h1 className="text-2xl font-bold text-black dark:text-white">
           <Link to="/">NewsInn</Link>
         </h1>
 
-        {/* ============================
-            MENU KIRI
-        ============================= */}
-        <nav className="space-x-4 hidden md:flex items-center text-black dark:text-white">
+        {/* MENU DESKTOP */}
+        <nav className="hidden md:flex items-center gap-6 text-black dark:text-white">
           <Link to="/" className="hover:underline">
             Home
           </Link>
 
-          {/* Dropdown Sumber */}
+          {/* KATEGORI */}
+          <div className="relative" ref={categoryRef}>
+            <button
+              onClick={() =>
+                setOpenMenu(openMenu === "category" ? null : "category")
+              }
+              className="flex items-center gap-1 hover:underline"
+            >
+              Kategori <ChevronDown size={16} />
+            </button>
+
+            {openMenu === "category" && (
+              <div className="absolute left-0 mt-2 bg-white dark:bg-gray-700 shadow-lg rounded-xl w-48 py-2 z-50 border dark:border-gray-600 animate-fadeIn">
+                {categories.map((cat) => (
+                  <Link
+                    key={cat}
+                    to={`/kategori/${cat.toLowerCase()}`}
+                    onClick={() => setOpenMenu(null)}
+                    className={`block px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-600 rounded-md ${
+                      activeCategory.toLowerCase() === cat.toLowerCase()
+                        ? "font-bold text-blue-600"
+                        : ""
+                    }`}
+                  >
+                    {cat.charAt(0).toUpperCase() + cat.slice(1)}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* SUMBER */}
           <div className="relative" ref={sourceRef}>
             <button
               onClick={() =>
@@ -87,7 +137,6 @@ const Navbar: React.FC = () => {
             Bookmark
           </Link>
 
-          {/* TAMPIL HANYA SETELAH LOGIN */}
           {user && (
             <Link
               to="/add"
@@ -98,21 +147,15 @@ const Navbar: React.FC = () => {
           )}
         </nav>
 
-        {/* ============================
-            MENU KANAN
-        ============================= */}
+        {/* KANAN */}
         <div className="flex items-center gap-3">
-          {/* Toggle Tema */}
           <button
             onClick={toggleTheme}
             className="p-2 rounded-full bg-white dark:bg-gray-700 text-black dark:text-yellow-300 transition"
           >
             {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          {/* <ThemeTogglerButton /> */}
-          {/* ============================
-              BELUM LOGIN
-          ============================= */}
+
           {!user ? (
             <>
               <Link
@@ -129,9 +172,6 @@ const Navbar: React.FC = () => {
               </Link>
             </>
           ) : (
-            /* ============================
-                SUDAH LOGIN
-            ============================= */
             <div className="relative" ref={profileRef}>
               <button
                 onClick={() =>
@@ -143,7 +183,7 @@ const Navbar: React.FC = () => {
               </button>
 
               {openMenu === "profile" && (
-                <div className="absolute right-0 mt-3 bg-white dark:bg-gray-700 shadow-lg rounded-xl w-44 py-2 border dark:border-gray-600 animate-fadeIn z-50">
+                <div className="absolute right-0 mt-3 bg-white dark:bg-gray-700 shadow-lg rounded-xl w-44 py-2 z-50 border dark:border-gray-600 animate-fadeIn">
                   <p className="px-4 py-2 text-sm border-b dark:border-gray-600">
                     {user.name ?? user.email}
                   </p>

@@ -13,8 +13,14 @@ interface NewsCardProps {
   source?: string;
   fromBookmark?: boolean;
 
-  // Callback untuk Home setelah delete berhasil (Home akan panggil server)
   onDeleteSuccess?: (id: string) => void;
+}
+
+function formatCategory(cat?: string) {
+  if (!cat) return "";
+  const lower = cat.toLowerCase();
+  if (lower === "lainnya") return "Lainnya";
+  return lower.charAt(0).toUpperCase() + lower.slice(1);
 }
 
 const NewsCard: React.FC<NewsCardProps> = ({
@@ -34,9 +40,13 @@ const NewsCard: React.FC<NewsCardProps> = ({
   const idStr = String(id);
   const bookmarked = isBookmarked(idStr);
 
-  const handleBookmark = () => {
+  const handleBookmarkToggle = () => {
     if (bookmarked) {
       removeBookmark(idStr);
+
+      if (fromBookmark && onDeleteSuccess) {
+        onDeleteSuccess(idStr);
+      }
     } else {
       addBookmark({
         id: idStr,
@@ -50,25 +60,99 @@ const NewsCard: React.FC<NewsCardProps> = ({
     }
   };
 
-  // NOTE: NewsCard TIDAK memanggil API DELETE langsung.
-  // NewsCard hanya memicu callback onDeleteSuccess yang didefinisikan di Home.
-  const handleDeleteLocalNews = () => {
-    if (onDeleteSuccess) onDeleteSuccess(idStr);
-  };
+  // ------------------------------------------------------------
+  //           FULL WIDTH STYLE khusus BOOKMARK PAGE
+  // ------------------------------------------------------------
+  if (fromBookmark) {
+    return (
+      <div
+        className="
+        bg-white dark:bg-gray-800
+        text-black dark:text-white
+        rounded-xl shadow-md
+        overflow-hidden
+        w-full h-full
+        flex flex-col
+        hover:shadow-xl hover:-translate-y-1
+        transition
+      "
+      >
+        <img
+          src={image && image.trim() !== "" ? image : "/no-image.png"}
+          alt={title}
+          className="w-full h-48 object-cover"
+          loading="lazy"
+          onError={(e) => (e.currentTarget.src = "/no-image.png")}
+        />
 
+        <div className="p-4 flex flex-col flex-grow">
+          <Link
+            to={`/detail/${encodeURIComponent(idStr)}`}
+            state={{
+              id: idStr,
+              title,
+              image,
+              summary,
+              category,
+              link,
+              date,
+              isLocal: source === "local",
+            }}
+          >
+            <h3 className="font-bold text-md mb-1 line-clamp-2">{title}</h3>
+          </Link>
+
+          <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 flex-grow">
+            {summary}
+          </p>
+
+          <div className="flex items-center justify-between mt-3">
+            <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
+              {source === "local" ? "Berita Lokal" : formatCategory(category)}
+            </span>
+
+            <button
+              onClick={handleBookmarkToggle}
+              className="text-blue-600 dark:text-blue-400 transition"
+              title="Unbookmark"
+            >
+              {bookmarked ? (
+                <BookmarkCheck size={22} />
+              ) : (
+                <Bookmark size={22} />
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ------------------------------------------------------------
+  //           DEFAULT STYLE (Home Page, kategori lain)
+  // ------------------------------------------------------------
   return (
-    <div className="bg-white dark:bg-gray-800 text-black dark:text-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition">
+    <div
+      className="
+        bg-white dark:bg-gray-800
+        text-black dark:text-white
+        rounded-xl shadow-md
+        overflow-hidden
+        w-full h-full
+        flex flex-col
+        hover:shadow-xl hover:-translate-y-1
+        transition
+      "
+    >
       <img
         src={image && image.trim() !== "" ? image : "/no-image.png"}
         alt={title}
         className="w-full h-48 object-cover"
         loading="lazy"
-        onError={(e) => {
-          e.currentTarget.src = "/no-image.png";
-        }}
+        onError={(e) => (e.currentTarget.src = "/no-image.png")}
       />
 
-      <div className="p-4 flex flex-col justify-between h-44">
+      <div className="p-4 flex flex-col flex-grow">
         <Link
           to={`/detail/${encodeURIComponent(idStr)}`}
           state={{
@@ -82,31 +166,21 @@ const NewsCard: React.FC<NewsCardProps> = ({
             isLocal: source === "local",
           }}
         >
-          <h3 className="font-bold text-md mb-1 line-clamp-2 text-black dark:text-white">
-            {title}
-          </h3>
+          <h3 className="font-bold text-md mb-1 line-clamp-2">{title}</h3>
         </Link>
 
-        <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+        <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 flex-grow">
           {summary}
         </p>
 
         <div className="flex items-center justify-between mt-3">
           <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-            {source === "local" ? "Berita Lokal" : category}
+            {source === "local" ? "Berita Lokal" : formatCategory(category)}
           </span>
 
-          {fromBookmark ? (
+          {source === "local" ? (
             <button
-              onClick={() => removeBookmark(idStr)}
-              className="text-red-500 dark:text-red-400 transition"
-              title="Hapus dari bookmark"
-            >
-              <Trash size={22} />
-            </button>
-          ) : source === "local" ? (
-            <button
-              onClick={handleDeleteLocalNews}
+              onClick={() => onDeleteSuccess && onDeleteSuccess(idStr)}
               className="text-red-500 dark:text-red-400 transition"
               title="Hapus berita lokal"
             >
@@ -114,9 +188,9 @@ const NewsCard: React.FC<NewsCardProps> = ({
             </button>
           ) : (
             <button
-              onClick={handleBookmark}
+              onClick={handleBookmarkToggle}
               className="text-blue-600 dark:text-blue-400 transition"
-              title="Tambahkan/Hapus Bookmark"
+              title="Bookmark / Unbookmark"
             >
               {bookmarked ? (
                 <BookmarkCheck size={22} />

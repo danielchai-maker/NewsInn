@@ -1,1 +1,12 @@
-[]
+[
+  {
+    "id": "1765361717024",
+    "title": "Berita 1",
+    "image": "https://images.pexels.com/photos/31565014/pexels-photo-31565014.jpeg",
+    "summary": "Lamborghini Revuelto Menjadi Hadiah Ulang Tahun yang ke-9 Anak Pengusaha Makassar! Bikin Heboh Konon Harganya Mencapai Rp. 22 Miliar Rupiah",
+    "content": "mantap",
+    "category": "Otomotif",
+    "date": "2025-12-10T10:15:17.025Z",
+    "ownerId": "e34fd486-2fd2-4bf1-a21f-2112a01a815e"
+  }
+]
